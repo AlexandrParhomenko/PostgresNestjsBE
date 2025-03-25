@@ -2,16 +2,28 @@ import {Injectable} from '@nestjs/common';
 import {User} from "./users.model";
 import {InjectModel} from "@nestjs/sequelize";
 import {CreateUserDto} from "./dto/create-user.dto";
+import {RolesService} from "../roles/roles.service";
 
 @Injectable()
 export class UsersService {
 
-    constructor(@InjectModel(User) private userStorage: typeof User) {}
+    constructor(@InjectModel(User) private userStorage: typeof User,
+                private roleService: RolesService) {}
     async createUser(dto: CreateUserDto) {
-        return await this.userStorage.create(dto)
+        const user = await this.userStorage.create(dto)
+        const role = await this.roleService.getRoleByValue("USER")
+        if (role) {
+            await user.$set('roles', [role.id])
+            user.roles = [role]
+        }
+        return user
     }
 
     async getAllUsers() {
-        return await this.userStorage.findAll()
+        return await this.userStorage.findAll({include: {all: true}})
+    }
+
+    async getUserByEmail(email: string) {
+        return await this.userStorage.findOne({where: {email}, include: {all: true}})
     }
 }
